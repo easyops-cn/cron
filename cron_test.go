@@ -59,7 +59,7 @@ func TestFuncPanicRecovery(t *testing.T) {
 
 type DummyJob struct{}
 
-func (d DummyJob) Run() {
+func (d DummyJob) Run(_jec JobExecutionContext) {
 	panic("YOLO")
 }
 
@@ -279,9 +279,9 @@ func TestRunningMultipleSchedules(t *testing.T) {
 	cron.AddFunc("0 0 0 1 1 ?", func() {})
 	cron.AddFunc("0 0 0 31 12 ?", func() {})
 	cron.AddFunc("* * * * * ?", func() { wg.Done() })
-	cron.Schedule(Every(time.Minute), FuncJob(func() {}))
-	cron.Schedule(Every(time.Second), FuncJob(func() { wg.Done() }))
-	cron.Schedule(Every(time.Hour), FuncJob(func() {}))
+	cron.Schedule(Every(time.Minute), FuncJob(func(jec JobExecutionContext) {}))
+	cron.Schedule(Every(time.Second), FuncJob(func(jec JobExecutionContext) { wg.Done() }))
+	cron.Schedule(Every(time.Hour), FuncJob(func(jec JobExecutionContext) {}))
 
 	cron.Start()
 	defer cron.Stop()
@@ -367,7 +367,7 @@ type testJob struct {
 	name string
 }
 
-func (t testJob) Run() {
+func (t testJob) Run(_jec JobExecutionContext) {
 	t.wg.Done()
 }
 
@@ -501,8 +501,8 @@ func TestScheduleAfterRemoval(t *testing.T) {
 	var mu sync.Mutex
 
 	cron := newWithSeconds()
-	hourJob := cron.Schedule(Every(time.Hour), FuncJob(func() {}))
-	cron.Schedule(Every(time.Second), FuncJob(func() {
+	hourJob := cron.Schedule(Every(time.Hour), FuncJob(func(_jec JobExecutionContext) {}))
+	cron.Schedule(Every(time.Second), FuncJob(func(jec JobExecutionContext) {
 		mu.Lock()
 		defer mu.Unlock()
 		switch calls {
@@ -546,7 +546,7 @@ func TestJobWithZeroTimeDoesNotRun(t *testing.T) {
 	cron := newWithSeconds()
 	var calls int64
 	cron.AddFunc("* * * * * *", func() { atomic.AddInt64(&calls, 1) })
-	cron.Schedule(new(ZeroSchedule), FuncJob(func() { t.Error("expected zero task will not run") }))
+	cron.Schedule(new(ZeroSchedule), FuncJob(func(_jec JobExecutionContext) { t.Error("expected zero task will not run") }))
 	cron.Start()
 	defer cron.Stop()
 	<-time.After(OneSecond)
